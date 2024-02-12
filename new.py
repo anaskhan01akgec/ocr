@@ -60,7 +60,8 @@ async def websocket_endpoint(websocket: WebSocket):
 
             ##################################
             
-            
+            if extracted_text is None:
+                await websocket.send_text("no text in image")
             if idtype is None:
                 idtype = "null"
             if name != "null" and dob != "null" and pan != "null":
@@ -270,7 +271,6 @@ async def findIdType(contents):
         
     
     
-
 
 
 
