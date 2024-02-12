@@ -60,11 +60,15 @@ async def websocket_endpoint(websocket: WebSocket):
 
             ##################################
             
-            if extracted_text is None:
+            
+            if extracted_text=="":
                 await websocket.send_text("no text in image")
+	        
             if idtype is None:
                 idtype = "null"
-            if name != "null" and dob != "null" and pan != "null":
+            
+            elif re.search(r'\b\d{2}/\d{2}/\d{4}\b', extracted_text) is not None:
+                
                 await websocket.send_text(str({"name": name, "dob": dob, "document_number": pan, "document_type": idtype, "address": address}))
             else:
 
@@ -74,7 +78,7 @@ async def websocket_endpoint(websocket: WebSocket):
            
             
     except Exception as e:
-        print("WebSocket Error:", e)
+        await websocket.send_text("internal server error")
 
 #Function to extract address
 
@@ -83,6 +87,8 @@ def extract_address(extracted_text):
     
     substring = "Address:"
     start = extracted_text.find(substring)
+    if start is None:
+        return "null"
     if(start==-1):
         start = extracted_text.find("Address")
     if(start==-1):
