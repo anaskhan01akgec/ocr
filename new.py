@@ -20,22 +20,24 @@ app.add_middleware(
 @app.websocket("/scan")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    
-    while True:
-        try:
-            id, address, dob, name=None, None, None, None
-            b64_image = await websocket.receive_text()
-            image_bytes = base64.b64decode(b64_image)
-        
-            text=warpAndScan(image_bytes)
+    try:
+        while True:
+            try:
+                id, address, dob, name=None, None, None, None
+                b64_image = await websocket.receive_text()
+                image_bytes = base64.b64decode(b64_image)
             
-            if "Address" in text or "A dd ress" in text or "Addre ss" in text or "Addrèss" in text or "Addres55" in text or "4ddress" in text or "Addrass" in text or "Add ress" in text or "Addre$$" in text or "sserdA" in text or "Addre5s" in text:
-                address=extractBack(text)
-            else:
-                name, dob, id= extractFront(text)
-        except:
-            pass
-        await websocket.send_json({"id":id,"dob":dob,"name":name, "address":address})
+                text=warpAndScan(image_bytes)
+                
+                if "Address" in text or "A dd ress" in text or "Addre ss" in text or "Addrèss" in text or "Addres55" in text or "4ddress" in text or "Addrass" in text or "Add ress" in text or "Addre$$" in text or "sserdA" in text or "Addre5s" in text:
+                    address=extractBack(text)
+                else:
+                    name, dob, id= extractFront(text)
+            except:
+                pass
+            await websocket.send_json({"id":id,"dob":dob,"name":name, "address":address})
+    except:
+        print("connection died")
            
    
 
@@ -139,39 +141,48 @@ def frontOrBack(text):
         return "front"
 
 def extractFront(text):
-        
+        # searching for keyword name ie a PAN card
         # searching for name in front 
-        start = text.find("DO8")
-        if(start==-1):
-            start = text.find("D08")
-        if(start==-1):
-            start = text.find("D08")
-        if(start==-1):
-            start = text.find("D0B")
-        if(start==-1):
-            start = text.find("DOB")
+        if text.find("Name") != -1:
+            print("name found")
+            name_pattern = r'\bName(?:\s*:\s*|\s+)(\w+\s+\w+)\b'
+            name_match = re.search(name_pattern, text)
+            name = name_match.group(1) if name_match else None
+        # if keyword name not found in text
+        # likely a aadhaar card
+        if text.find("Name") == -1:
+            # searching for name in front 
+            start = text.find("DO8")
+            if(start==-1):
+                start = text.find("D08")
+            if(start==-1):
+                start = text.find("D08")
+            if(start==-1):
+                start = text.find("D0B")
+            if(start==-1):
+                start = text.find("DOB")
 
 
 
-        print(start)
-        name=""
-        english="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        firstinstace=-1
-        secondInstanceace=-1
-        for i in range(start-1,-1,-1):
+            print(start)
+            name=""
+            english="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+            firstinstace=-1
+            secondInstanceace=-1
+            for i in range(start-1,-1,-1):
 
-            if text[i] in english:
-                secondInstance=i
-                break
-        for i in range(i-1,-1,-1):
-
-            if text[i] not in english:
-                if(text[i].isspace()==False):
-                    firstinstace=i+1
+                if text[i] in english:
+                    secondInstance=i
                     break
-            
+            for i in range(i-1,-1,-1):
 
-        name=text[firstinstace+1:secondInstance+1]
+                if text[i] not in english:
+                    if(text[i].isspace()==False):
+                        firstinstace=i+1
+                        break
+                
+
+            name=text[firstinstace+1:secondInstance+1]
         # for dob
 
         dob_pattern = r"(\d{2}/\d{2}/\d{4})"
@@ -182,15 +193,21 @@ def extractFront(text):
         # for id number
         aadhar_pattern = r"\b\d{4}\s?\d{4}\s?\d{4}\b"
         aadhar_match = re.search(aadhar_pattern, text)
+    
+        if aadhar_match is not None:
+            id = aadhar_match.group() if aadhar_match else None
+            return name,dob, id 
+        if aadhar_match is None:
+            desired_length = 10
 
-        if aadhar_match:
-            id= aadhar_match.group() if aadhar_match else None
-        else:
-           pan_pattern = r"[A-Z]{5}[0-9]{4}[A-Z]{1}"
-           pan_match= re.search(pan_pattern, text)
-           id = pan_match.group() if pan_match else None
-
-        return name, dob, id
+            words = text.split()
+            result_words = [word for word in words if len(word) == desired_length]
+            
+            for word in result_words:
+                count_numbers = sum(char.isdigit() for char in word)
+                if(count_numbers>=2 and count_numbers<=6):
+                    id= word
+                    return name, dob, id
 def extractBack(extracted_text):
     # Extract text between "address" and a 12-digit number
     
