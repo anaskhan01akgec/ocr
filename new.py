@@ -28,7 +28,24 @@ async def websocket_endpoint(websocket: WebSocket):
                 image_bytes = base64.b64decode(b64_image)
             
                 text=warpAndScan(image_bytes)
-                
+                if "Address" in text or "A dd ress" in text or "Addre ss" in text or "Addrèss" in text or "Addres55" in text or "4ddress" in text or "Addrass" in text or "Add ress" in text or "Addre$$" in text or "sserdA" in text or "Addre5s" in text:
+                    address=extractBack(text)
+                else:
+                    name, dob, id= extractFront(text)
+            except:
+                pass
+            await websocket.send_json({"id":id,"dob":dob,"name":name, "address":address})
+    except:
+        print("connection died")
+
+@app.websocket("/filter")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        while True:
+            try:
+                id, address, dob, name=None, None, None, None
+                text = await websocket.receive_text()
                 if "Address" in text or "A dd ress" in text or "Addre ss" in text or "Addrèss" in text or "Addres55" in text or "4ddress" in text or "Addrass" in text or "Add ress" in text or "Addre$$" in text or "sserdA" in text or "Addre5s" in text:
                     address=extractBack(text)
                 else:
